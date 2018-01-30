@@ -60,38 +60,41 @@ public class BlockListsPerLabel
 		conf
 				.set( "spark.serializer", "org.apache.spark.serializer.KryoSerializer" )
 				.setAppName( MethodHandles.lookup().lookupClass().getName() );
-		final JavaSparkContext sc = new JavaSparkContext( conf );
 
-		final JavaRDD< Tuple2< Interval, long[] > > ids = collectIds( sc.parallelize( intervals ), n5BasePath, dataset );
+		try (final JavaSparkContext sc = new JavaSparkContext( conf ))
+		{
 
-		ids
-				.flatMapToPair( t -> Arrays.stream( t._2() ).mapToObj( l -> new Tuple2<>( l, t._1() ) ).iterator() )
-				.combineByKey( BlockListsPerLabel::toArrayList,
-						( list, value ) -> {
-							list.addAll( toArrayList( value ) );
-							return list;
-						}, ( l1, l2 ) -> {
-							l1.addAll( l2 );
-							return l1;
-						} )
-				.map( idAndLocations -> {
-					final Long id = idAndLocations._1();
-					final TLongArrayList locations = idAndLocations._2();
-					final byte[] data = new byte[ locations.size() * Long.BYTES ];
-					final File f = new File( target, String.format( "%d", id ) );
-					f.createNewFile();
-					final ByteBuffer bb = ByteBuffer.wrap( data );
-					for ( int i = 0; i < locations.size(); ++i )
-						bb.putLong( locations.get( i ) );
+			final JavaRDD< Tuple2< Interval, long[] > > ids = collectIds( sc.parallelize( intervals ), n5BasePath, dataset );
 
-					try (FileOutputStream fos = new FileOutputStream( f ))
-					{
-						LOG.debug( "Saving {} locations for label {}: {}.", locations.size(), id, locations );
-						fos.write( data );
-					}
-					return true;
-				} )
-				.count();
+			ids
+					.flatMapToPair( t -> Arrays.stream( t._2() ).mapToObj( l -> new Tuple2<>( l, t._1() ) ).iterator() )
+					.combineByKey( BlockListsPerLabel::toArrayList,
+							( list, value ) -> {
+								list.addAll( toArrayList( value ) );
+								return list;
+							}, ( l1, l2 ) -> {
+								l1.addAll( l2 );
+								return l1;
+							} )
+					.map( idAndLocations -> {
+						final Long id = idAndLocations._1();
+						final TLongArrayList locations = idAndLocations._2();
+						final byte[] data = new byte[ locations.size() * Long.BYTES ];
+						final File f = new File( target, String.format( "%d", id ) );
+						f.createNewFile();
+						final ByteBuffer bb = ByteBuffer.wrap( data );
+						for ( int i = 0; i < locations.size(); ++i )
+							bb.putLong( locations.get( i ) );
+
+						try (FileOutputStream fos = new FileOutputStream( f ))
+						{
+							LOG.debug( "Saving {} locations for label {}: {}.", locations.size(), id, locations );
+							fos.write( data );
+						}
+						return true;
+					} )
+					.count();
+		}
 
 	}
 
