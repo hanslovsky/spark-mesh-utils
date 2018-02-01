@@ -17,8 +17,11 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,6 +127,17 @@ public class BlockListsPerLabel
 	public static boolean pathIsH5( final String path )
 	{
 		return Pattern.matches( "^.*\\.h5$|^.*\\.hdf$", path );
+	}
+
+	public static N5Reader getReader( final String path, final int[] defaultBlockSize ) throws IOException
+	{
+		return pathIsH5( path ) ? new N5HDF5Reader( path, defaultBlockSize ) : new N5FSReader( path );
+	}
+
+	public static N5Writer getWriter( final String path, final int[] defaultBlockSize ) throws IOException
+	{
+		return pathIsH5( path ) ? new N5HDF5Writer( path, defaultBlockSize ) : new N5FSWriter( path );
+
 	}
 
 	public static List< long[] > collectAllOffsets( final long[] dimensions, final int[] blockSize )
